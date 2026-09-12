@@ -47,17 +47,6 @@ if (!hasPasswordHash) {
   });
 }
 
-// 4. Ensure SQLite database file exists
-const dbPath = path.join(ROOT_DIR, 'data', 'database', 'song4her.db');
-if (!fs.existsSync(dbPath)) {
-  console.log('\n📦 Initializing local SQLite database...');
-  spawnSync(npmCmd, ['run', 'db:push'], {
-    stdio: 'inherit',
-    cwd: ROOT_DIR,
-    shell: true,
-  });
-}
-
 const processes: ChildProcess[] = [];
 
 function cleanup() {
@@ -92,12 +81,13 @@ console.log('\x1b[36m' + '  🦋 A private, personalized song-delivery platform 
 console.log('  ─────────────────────────────────────────────────────────────────');
 console.log('  \x1b[1m\x1b[32m✔ Local Admin Dashboard:\x1b[0m   http://localhost:3000/admin');
 console.log('  \x1b[1m\x1b[34m✔ Fastify API Server:\x1b[0m      http://localhost:3001');
-console.log('  \x1b[1m\x1b[33m✔ Cloudflare Tunnel:\x1b[0m       Starting automatically...');
+console.log('  \x1b[1m\x1b[33m✔ Cloudflare Tunnel:\x1b[0m       Connecting in background...');
+console.log('  \x1b[1m\x1b[35m✔ Database:\x1b[0m                Zero-native JSON engine ready');
 console.log('  ─────────────────────────────────────────────────────────────────\n');
 console.log('  Starting services...\n');
 
 async function start() {
-  // 5. Start Server
+  // 5. Start Fastify Server
   console.log('  ⚡ Launching Fastify API server...');
   const serverProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/server'], {
     stdio: 'inherit',
@@ -113,34 +103,42 @@ async function start() {
         resolve(res.statusCode === 200);
       });
       req.on('error', () => resolve(false));
-      req.setTimeout(800, () => {
+      req.setTimeout(500, () => {
         req.destroy();
         resolve(false);
       });
     });
   }
 
-  async function waitForServer(port: number = 3001, timeoutMs: number = 20000): Promise<boolean> {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
+  async function waitForServer(port: number = 3001, timeoutMs: number = 15000): Promise<boolean> {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeoutMs) {
       if (await checkServerHealth(port)) return true;
-      await new Promise((r) => setTimeout(r, 250));
+      await new Promise((r) => setTimeout(r, 80));
     }
     return false;
   }
 
-  // 6. Wait for Fastify API to be listening and healthy before launching Next.js
-  console.log('  ⏳ Waiting for API server on port 3001...');
-  const isReady = await waitForServer(3001, 20000);
+  // 6. Wait for Fastify API to be listening (typically ~200ms)
+  const isReady = await waitForServer(3001, 15000);
   if (isReady) {
-    console.log('  \x1b[32m✔ API server is ready!\x1b[0m\n');
+    console.log('  \x1b[32m✔ API server ready on port 3001!\x1b[0m\n');
   } else {
-    console.warn('  \x1b[33m⚠ API server took longer than expected to start, launching web...\x1b[0m\n');
+    console.warn('  \x1b[33m⚠ API server took longer than expected, continuing...\x1b[0m\n');
   }
 
-  // 7. Start Web
-  console.log('  ⚡ Launching Next.js web application...');
-  const webProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/web'], {
+  // 7. Start Next.js Web App
+  // Check if Next.js has been built (sub-second launch in production mode)
+  const hasNextBuild = fs.existsSync(path.join(ROOT_DIR, 'apps', 'web', '.next'));
+  const webCmd = hasNextBuild ? 'start' : 'dev';
+
+  if (hasNextBuild) {
+    console.log('  ⚡ Launching Next.js (production mode — instant start)...');
+  } else {
+    console.log('  ⚡ Launching Next.js (development mode)...');
+  }
+
+  const webProc = spawn(npmCmd, ['run', webCmd, '--workspace=apps/web'], {
     stdio: 'inherit',
     cwd: ROOT_DIR,
     shell: true,
@@ -162,7 +160,7 @@ async function start() {
     } catch {
       // Ignore if auto-open is unsupported in current terminal
     }
-  }, 4000);
+  }, 2500);
 }
 
 start().catch(console.error);

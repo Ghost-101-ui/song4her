@@ -32,13 +32,7 @@ cd song4her
 npm install
 ```
 
-### 3. Initialize Database
-```bash
-npm run db:push
-```
-*This creates the local SQLite database in `data/database/song4her.db` without needing PostgreSQL/MySQL.*
-
-### 4. Set Your Admin Password
+### 3. Set Your Admin Password
 ```bash
 npm run setup
 ```

@@ -8,11 +8,9 @@
   "scripts": {
     "build": "tsc --noEmit"
   },
-  "dependencies": {
-    "@prisma/client": "*"
-  },
+  "dependencies": {},
   "devDependencies": {
-    "prisma": "*",
+    "@types/node": "^22.13.1",
     "typescript": "*"
   }
 }

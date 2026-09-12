@@ -56,14 +56,11 @@ cloudflared --version
 ## 🚀 Step 4: Clone and Setup Song4Her
 
 ```bash
-git clone <your-repo-or-copy-folder> song4her
+git clone https://github.com/Ghost-101-ui/song4her.git
 cd song4her
 
-# Install dependencies
+# Install dependencies (zero native build tools needed!)
 npm install
-
-# Initialize local SQLite database
-npm run db:push
 
 # Set your admin password
 npm run setup

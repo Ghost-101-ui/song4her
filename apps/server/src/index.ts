@@ -24,19 +24,17 @@ async function bootstrap(): Promise<void> {
   await ensureDataDirectories();
   console.log('[SONG4HER] Data directories ready');
 
-  // Test database connection
+  // Initialize zero-native database
   try {
     await prisma.$connect();
-    // Seed default settings if not present
     await prisma.settings.upsert({
       where: { id: 1 },
       update: {},
       create: { id: 1 },
     });
-    console.log('[SONG4HER] Database ready');
+    console.log('[SONG4HER] Database ready (zero-native JSON engine)');
   } catch (err) {
-    console.error('[SONG4HER] Database error:', err);
-    console.error('[SONG4HER] Run: npm run db:push to initialize the database');
+    console.error('[SONG4HER] Database initialization error:', err);
     process.exit(1);
   }
 
@@ -111,15 +109,18 @@ async function bootstrap(): Promise<void> {
   startExpiryChecker();
   console.log('[SONG4HER] Expiry checker started');
 
-  // Start tunnel if not in test mode
+  // Start tunnel asynchronously in background (instant server startup)
   if (process.env.SKIP_TUNNEL !== 'true') {
-    console.log('[SONG4HER] Starting tunnel...');
-    const tunnelUrl = await startTunnel(config.webPort);
-    if (tunnelUrl) {
-      console.log(`[SONG4HER] Public URL: ${tunnelUrl}`);
-    } else {
-      console.warn('[SONG4HER] Tunnel failed to start — running in local mode only');
-    }
+    console.log('[SONG4HER] Starting Cloudflare tunnel in background...');
+    startTunnel(config.webPort).then((tunnelUrl) => {
+      if (tunnelUrl) {
+        console.log(`[SONG4HER] Public URL: ${tunnelUrl}`);
+      } else {
+        console.log('[SONG4HER] Tunnel running in local-only mode');
+      }
+    }).catch((err) => {
+      console.warn('[SONG4HER] Tunnel background error:', err?.message || err);
+    });
   }
 }
 

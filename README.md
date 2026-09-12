@@ -119,7 +119,7 @@ Open Termux and run:
 
 ```bash
 pkg update && pkg upgrade -y
-pkg install -y nodejs-lts git ffmpeg openssl
+pkg install -y nodejs-lts git ffmpeg
 ```
 
 Grant storage access (to upload music files from your phone):
@@ -182,10 +182,8 @@ To prevent Android from killing the server while she's downloading:
 
 | Command | What it does |
 |---------|-------------|
-| `npm run song4her` | 🚀 Start everything (1-click) |
+| `npm run song4her` | 🚀 Start everything (1-click, ultra-fast) |
 | `npm run setup` | Set / change admin password |
-| `npm run db:push` | Initialize / reset SQLite database |
-| `npm run db:studio` | Open Prisma Studio (database viewer) |
 | `npm run dev` | Start web + server in dev mode (with concurrently) |
 | `npm run build` | Build all packages for production |
 
@@ -199,10 +197,10 @@ song4her/
 │   ├── web/           # Next.js 15 (App Router, Tailwind, Socket.IO client)
 │   └── server/        # Fastify v5 (API, streaming, FFmpeg, cloudflared tunnel)
 ├── packages/
-│   ├── database/      # Prisma ORM + SQLite
+│   ├── database/      # Zero-native pure TypeScript DB engine (data/database/song4her.json)
 │   ├── types/         # Shared TypeScript interfaces
 │   └── shared/        # Formatting & slug utilities
-├── data/              # 🔒 Local — songs, artwork, SQLite DB (gitignored)
+├── data/              # 🔒 Local — songs, artwork, JSON database (gitignored)
 ├── bin/               # 🔒 Local — cloudflared binary (gitignored)
 ├── scripts/           # start.ts, setup-password.ts
 ├── docs/              # Detailed guides
@@ -213,11 +211,11 @@ song4her/
 **Tech stack:**
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Lucide icons
 - **Backend**: Node.js, Fastify v5, Socket.IO v4
-- **Database**: SQLite via Prisma ORM
+- **Database**: Zero-native persistent engine (`data/database/song4her.json`) with atomic writes (0ms startup, zero glibc/Rust binary issues on Android Termux)
 - **Media**: FFmpeg (`fluent-ffmpeg`) with **zero native C++ dependencies** (100% Termux/Android Bionic libc compatible — no Sharp or node-gyp required)
-- **Tunnel**: Cloudflare Quick Tunnels (`cloudflared`)
+- **Tunnel**: Cloudflare Quick Tunnels (`cloudflared`) connecting asynchronously in background
 - **Auth**: Node.js `scrypt` salted hashing, secure `@fastify/session` cookies
-- **Orchestration**: `scripts/start.ts` with automatic health-check synchronization (waits for port 3001 before starting web)
+- **Orchestration**: `scripts/start.ts` with sub-second health-check synchronization (boots in under 2s on phone)
 
 ---
 

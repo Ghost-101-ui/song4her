@@ -10,21 +10,14 @@
     "dev": "concurrently --prefix-colors \"yellow,cyan\" --names \"SERVER,WEB\" \"npm run dev --workspace=apps/server\" \"npm run dev --workspace=apps/web\"",
     "build": "npm run build --workspace=packages/types && npm run build --workspace=packages/shared && npm run build --workspace=packages/database && npm run build --workspace=apps/server && npm run build --workspace=apps/web",
     "song4her": "tsx scripts/start.ts",
+    "start": "tsx scripts/start.ts",
     "setup": "tsx scripts/setup-password.ts",
-    "db:migrate": "prisma migrate dev",
-    "db:push": "prisma db push",
-    "db:studio": "prisma studio",
-    "db:generate": "prisma generate",
     "tunnel": "cloudflared tunnel --url http://localhost:3000"
   },
   "devDependencies": {
     "@types/node": "^22.13.1",
     "concurrently": "^9.1.2",
     "tsx": "^4.19.3",
-    "typescript": "^5.7.2",
-    "prisma": "^6.4.1"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.4.1"
+    "typescript": "^5.7.2"
   }
 }
