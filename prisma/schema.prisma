@@ -1,0 +1,43 @@
+// Song4Her 🦋 — Prisma Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model SongDelivery {
+  id             String    @id @default(cuid())
+  slug           String    @unique
+  title          String
+  artist         String
+  album          String?
+  duration       Int?      // seconds
+  format         String    // mp3, m4a, webm, etc.
+  mimeType       String
+  fileName       String    // original filename
+  fileSize       Int       // bytes
+  filePath       String    // path in data/songs/
+  artworkPath    String?   // path in data/artwork/
+  artworkColor   String?   // dominant RGB color e.g. "180,120,80"
+  note           String    @default("")
+  isActive       Boolean   @default(true)
+  downloadCount  Int       @default(0)
+  lastDownloaded DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  expiresAt      DateTime?
+}
+
+model Settings {
+  id           Int    @id @default(1)
+  signature    String @default("Built with 🫶🏻 by Dhurbb\nfor her shiuuuu 🦋")
+  defaultNote  String @default("")
+  defaultExpiry String @default("never")
+  accentColor  String @default("#e879a0")
+  theme        String @default("dark")
+  displayName  String @default("Dhurbb")
+}

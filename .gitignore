@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment — contains secrets, never commit
+.env
+.env.local
+.env.production
+
+# Data (SQLite DB, uploaded media) — local only
+data/
+
+# Cloudflared binary — downloaded by user per platform
+bin/
+
+# Prisma generated client (regenerated via postinstall)
+packages/database/src/generated/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary files
+*.tmp
+*.temp

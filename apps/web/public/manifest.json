@@ -1,0 +1,17 @@
+{
+  "name": "Song4Her 🦋",
+  "short_name": "Song4Her",
+  "description": "A private, personal song-delivery platform",
+  "start_url": "/admin",
+  "display": "standalone",
+  "background_color": "#0a0a10",
+  "theme_color": "#e879a0",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

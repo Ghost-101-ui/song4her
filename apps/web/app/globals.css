@@ -1,0 +1,170 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --accent: #e879a0;
+    --accent-rgb: 232, 121, 160;
+  }
+
+  * {
+    @apply border-surface-border;
+  }
+
+  html {
+    @apply scroll-smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-surface text-white font-sans antialiased;
+    font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+  }
+
+  ::selection {
+    background: rgba(var(--accent-rgb), 0.3);
+    color: white;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-surface-4 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-surface-border; }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Glass morphism card */
+  .glass {
+    @apply backdrop-blur-md border border-white/10;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .glass-strong {
+    @apply backdrop-blur-xl border border-white/15;
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-gradient-to-r from-brand-300 to-brand-500 bg-clip-text text-transparent;
+  }
+
+  /* Animated gradient border */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(var(--surface, #0f0f14), var(--surface, #0f0f14)) padding-box,
+                linear-gradient(135deg, rgba(232, 121, 160, 0.5), rgba(147, 51, 234, 0.5)) border-box;
+    border: 1px solid transparent;
+  }
+
+  /* Admin sidebar */
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           text-white/60 hover:text-white hover:bg-surface-2
+           transition-all duration-200 cursor-pointer;
+  }
+
+  .sidebar-link.active {
+    @apply text-white bg-surface-2;
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+
+  /* Input style */
+  .input-base {
+    @apply w-full px-4 py-3 rounded-xl border border-surface-border
+           bg-surface-1 text-white placeholder-white/30
+           focus:outline-none focus:ring-2 focus:ring-brand-500/50 focus:border-brand-500/50
+           transition-all duration-200 text-sm;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+
+  /* Artwork placeholder */
+  .artwork-placeholder {
+    @apply flex items-center justify-center rounded-3xl
+           bg-gradient-to-br from-surface-3 to-surface-4
+           border border-surface-border;
+  }
+}
+
+@layer utilities {
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-flutter,
+    .animate-fade-in,
+    .animate-slide-up,
+    .animate-glow-pulse {
+      animation: none !important;
+    }
+  }
+
+  /* Touch target minimum sizes */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Gradient using CSS custom properties (for dynamic artwork colors) */
+  .artwork-gradient {
+    background: radial-gradient(
+      ellipse at 50% -10%,
+      rgba(var(--aw-r, 120), var(--aw-g, 80), var(--aw-b, 160), 0.45) 0%,
+      rgba(8, 6, 18, 1) 65%
+    );
+  }
+
+  .artwork-glow {
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 20px 60px rgba(var(--aw-r, 120), var(--aw-g, 80), var(--aw-b, 160), 0.25),
+      0 0 120px rgba(var(--aw-r, 120), var(--aw-g, 80), var(--aw-b, 160), 0.15);
+  }
+}
+
+/* ─── Party Popper Confetti ─────────────────────────────────────────────────── */
+
+/* Each particle is placed at (--cx, --cy) and shoots outward with velocity
+   (--vx, --vy) while gravity pulls it down. Rotates and fades out. */
+.confetti-particle {
+  position: fixed;
+  top: var(--cy, 50vh);
+  left: var(--cx, 50vw);
+  z-index: 9999;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+  will-change: transform, opacity;
+  animation: confetti-burst 1.25s cubic-bezier(0.2, 0.8, 0.4, 1) forwards;
+  transform-origin: center;
+}
+
+@keyframes confetti-burst {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  60% {
+    opacity: 1;
+  }
+  100% {
+    /* vx and vy are in px; gravity adds ~300px downward to vy */
+    transform:
+      translate(var(--vx, 0px), calc(var(--vy, 0px) + 300px))
+      rotate(var(--rot, 180deg))
+      scale(0.4);
+    opacity: 0;
+  }
+}
+
