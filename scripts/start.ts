@@ -1,4 +1,5 @@
 // Song4Her 🦋 — Main Startup Orchestrator
+// Spawns server & web as separate subprocesses for maximum Termux/Windows stability.
 import { spawn, spawnSync, type ChildProcess } from 'child_process';
 import http from 'http';
 import path from 'path';
@@ -38,7 +39,7 @@ const hasPasswordHash = /^ADMIN_PASSWORD_HASH=.+:\S+/m.test(envContent);
 
 if (!hasPasswordHash) {
   console.log('\n🦋 Welcome to Song4Her! First-time setup detected.');
-  console.log('Let\'s set your admin password so you can access the dashboard:\n');
+  console.log("Let's set your admin password so you can access the dashboard:\n");
 
   spawnSync(npmCmd, ['run', 'setup'], {
     stdio: 'inherit',
@@ -86,50 +87,112 @@ console.log('  \x1b[1m\x1b[35m✔ Database:\x1b[0m                Zero-native JS
 console.log('  ─────────────────────────────────────────────────────────────────\n');
 console.log('  Starting services...\n');
 
-async function start() {
-  // 5. Start Fastify Server
-  console.log('  ⚡ Launching Fastify API server...');
-  const serverProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/server'], {
-    stdio: 'inherit',
-    cwd: ROOT_DIR,
-    shell: true,
-    env: { ...process.env },
-  });
-  processes.push(serverProc);
+// ─── Health Check Helper ────────────────────────────────────────────────────
 
-  function checkServerHealth(port: number = 3001): Promise<boolean> {
-    return new Promise((resolve) => {
-      const req = http.get(`http://127.0.0.1:${port}/health`, (res) => {
-        resolve(res.statusCode === 200);
+function waitForServer(
+  host: string,
+  port: number,
+  path: string,
+  timeoutMs: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMs;
+
+    function attempt() {
+      if (Date.now() > deadline) {
+        reject(
+          new Error(
+            `Server at ${host}:${port}${path} did not respond within ${timeoutMs}ms.\n` +
+              'Check the [SERVER] logs above for errors.',
+          ),
+        );
+        return;
+      }
+
+      const req = http.request({ host, port, path, method: 'GET' }, (res) => {
+        if (res.statusCode && res.statusCode < 500) {
+          resolve();
+        } else {
+          setTimeout(attempt, 150);
+        }
       });
-      req.on('error', () => resolve(false));
+
+      req.on('error', () => setTimeout(attempt, 150));
       req.setTimeout(500, () => {
         req.destroy();
-        resolve(false);
+        setTimeout(attempt, 150);
       });
-    });
-  }
-
-  async function waitForServer(port: number = 3001, timeoutMs: number = 15000): Promise<boolean> {
-    const startTime = Date.now();
-    while (Date.now() - startTime < timeoutMs) {
-      if (await checkServerHealth(port)) return true;
-      await new Promise((r) => setTimeout(r, 80));
+      req.end();
     }
-    return false;
+
+    attempt();
+  });
+}
+
+// ─── Find tsx binary ────────────────────────────────────────────────────────
+
+function findTsx(): string {
+  // Try local node_modules first (works in both Termux and Windows)
+  const localTsx = path.join(ROOT_DIR, 'node_modules', '.bin', isWin ? 'tsx.cmd' : 'tsx');
+  if (fs.existsSync(localTsx)) return localTsx;
+
+  // Fallback: use npx tsx
+  return isWin ? 'npx.cmd' : 'npx';
+}
+
+const tsxBin = findTsx();
+const tsxArgs = tsxBin.endsWith('npx') || tsxBin.endsWith('npx.cmd') ? ['tsx'] : [];
+
+// ─── Main Start ─────────────────────────────────────────────────────────────
+
+async function start() {
+  // ── Step 1: Spawn Fastify server as a subprocess ──────────────────────────
+  console.log('  ⚡ Launching Fastify API server (subprocess)...');
+
+  const serverProc = spawn(
+    tsxBin,
+    [...tsxArgs, path.join('apps', 'server', 'src', 'index.ts')],
+    {
+      stdio: 'inherit',
+      cwd: ROOT_DIR,
+      shell: isWin,
+      env: { ...process.env },
+    },
+  );
+
+  processes.push(serverProc);
+
+  // If server exits immediately, report it as a fatal error
+  let serverExited = false;
+  serverProc.on('exit', (code) => {
+    serverExited = true;
+    if (code !== 0 && code !== null) {
+      console.error(`\n\x1b[31m❌ Fastify server process exited with code ${code}.\x1b[0m`);
+      console.error('   Check the [SERVER] logs above for the exact error.\n');
+    }
+  });
+
+  // ── Step 2: Wait for API server to be healthy (up to 30 seconds) ──────────
+  try {
+    await waitForServer('127.0.0.1', 3001, '/health', 30_000);
+    console.log('  \x1b[32m✔ Fastify API server ready on http://127.0.0.1:3001!\x1b[0m\n');
+  } catch (err: any) {
+    console.error(`\n\x1b[31m❌ ${err.message}\x1b[0m`);
+    if (serverExited) {
+      console.error(
+        '\x1b[33m   Tip: if you see EADDRINUSE, run:\x1b[0m\n' +
+          '     pkill -f "tsx" && pkill -f "node"    (Termux/Linux)\n' +
+          '     taskkill /f /im node.exe             (Windows)\n',
+      );
+    }
+    cleanup();
+    return;
   }
 
-  // 6. Wait for Fastify API to be listening (typically ~200ms)
-  const isReady = await waitForServer(3001, 15000);
-  if (isReady) {
-    console.log('  \x1b[32m✔ API server ready on port 3001!\x1b[0m\n');
-  } else {
-    console.warn('  \x1b[33m⚠ API server took longer than expected, continuing...\x1b[0m\n');
-  }
-
-  // 7. Start Next.js Web App
-  // Check if Next.js has been built (sub-second launch in production mode)
-  const hasNextBuild = fs.existsSync(path.join(ROOT_DIR, 'apps', 'web', '.next'));
+  // ── Step 3: Spawn Next.js Web App ─────────────────────────────────────────
+  const nextBin = path.join(ROOT_DIR, 'node_modules', 'next', 'dist', 'bin', 'next');
+  const webDir = path.join(ROOT_DIR, 'apps', 'web');
+  const hasNextBuild = fs.existsSync(path.join(webDir, '.next', 'BUILD_ID'));
   const webCmd = hasNextBuild ? 'start' : 'dev';
 
   if (hasNextBuild) {
@@ -138,15 +201,22 @@ async function start() {
     console.log('  ⚡ Launching Next.js (development mode)...');
   }
 
-  const webProc = spawn(npmCmd, ['run', webCmd, '--workspace=apps/web'], {
-    stdio: 'inherit',
-    cwd: ROOT_DIR,
-    shell: true,
-    env: { ...process.env },
-  });
+  const webProc = fs.existsSync(nextBin)
+    ? spawn(process.execPath, [nextBin, webCmd, '--port', '3000'], {
+        stdio: 'inherit',
+        cwd: webDir,
+        env: { ...process.env, PORT: '3000' },
+      })
+    : spawn(npmCmd, ['run', webCmd, '--workspace=apps/web'], {
+        stdio: 'inherit',
+        cwd: ROOT_DIR,
+        shell: true,
+        env: { ...process.env, PORT: '3000' },
+      });
+
   processes.push(webProc);
 
-  // 8. Automatically open browser after web is ready
+  // ── Step 4: Auto-open browser after 4s ────────────────────────────────────
   setTimeout(() => {
     const url = 'http://localhost:3000/admin';
     try {
@@ -154,13 +224,15 @@ async function start() {
         spawn('cmd.exe', ['/c', 'start', url], { detached: true, stdio: 'ignore' });
       } else if (isMac) {
         spawn('open', [url], { detached: true, stdio: 'ignore' });
-      } else {
-        spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
       }
+      // On Termux/Linux we skip xdg-open (not typically available)
     } catch {
-      // Ignore if auto-open is unsupported in current terminal
+      // Ignore if auto-open is unsupported
     }
-  }, 2500);
+  }, 4000);
 }
 
-start().catch(console.error);
+start().catch((err) => {
+  console.error('\x1b[31m❌ Fatal startup error:\x1b[0m', err?.message || err);
+  process.exit(1);
+});

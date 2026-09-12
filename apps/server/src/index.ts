@@ -138,7 +138,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// ─── Run ──────────────────────────────────────────────────────────────────────
+// ─── Auto-Run ─────────────────────────────────────────────────────────────────
+// Server is always launched as a subprocess by scripts/start.ts, so always boot.
 
 bootstrap().catch((err) => {
   console.error('[SONG4HER] Fatal error:', err);
