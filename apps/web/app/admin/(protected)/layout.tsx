@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { AdminShell } from '../AdminShell';
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_URL || 'http://127.0.0.1:3001';
 
 async function checkAuth(): Promise<boolean> {
   try {

@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation';
 import type { PublicDelivery } from '@song4her/types';
 import { RecipientView } from './RecipientView';
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_URL || 'http://127.0.0.1:3001';
 
 async function getDelivery(slug: string): Promise<PublicDelivery | null> {
   try {

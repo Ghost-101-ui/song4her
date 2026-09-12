@@ -1,6 +1,6 @@
 // Song4Her 🦋 — Media Processing Service
 import ffmpeg from 'fluent-ffmpeg';
-import sharp from 'sharp';
+import { PassThrough } from 'stream';
 import path from 'path';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
@@ -90,37 +90,66 @@ export async function extractEmbeddedArtwork(
 // ─── Artwork Processing ───────────────────────────────────────────────────────
 
 /**
- * Process artwork image: resize to reasonable dimensions and convert to JPEG.
- * Returns a buffer of the processed image.
+ * Process artwork image: resize to 800x800 and convert to JPEG.
+ * Uses FFmpeg with fallback to raw file buffer (zero native C++ npm dependencies).
  */
 export async function processArtwork(inputPath: string): Promise<Buffer> {
-  return sharp(inputPath)
-    .resize(800, 800, {
-      fit: 'cover',
-      position: 'center',
-    })
-    .jpeg({ quality: 90, progressive: true })
-    .toBuffer();
+  return new Promise((resolve, reject) => {
+    const pass = new PassThrough();
+    const chunks: Buffer[] = [];
+
+    pass.on('data', (chunk) => chunks.push(chunk));
+    pass.on('end', () => {
+      const buf = Buffer.concat(chunks);
+      if (buf.length > 0) resolve(buf);
+      else fs.readFile(inputPath).then(resolve).catch(reject);
+    });
+    pass.on('error', () => {
+      fs.readFile(inputPath).then(resolve).catch(reject);
+    });
+
+    ffmpeg(inputPath)
+      .outputOptions([
+        '-vf', 'scale=800:800:force_original_aspect_ratio=increase,crop=800:800',
+        '-vframes', '1',
+        '-q:v', '2',
+      ])
+      .format('image2')
+      .output(pass)
+      .on('error', () => {
+        // Fallback: read directly
+        fs.readFile(inputPath).then(resolve).catch(reject);
+      })
+      .run();
+  });
 }
 
 /**
  * Extract the dominant color from an artwork image.
- * Returns a string in "r,g,b" format.
+ * Returns a string in "r,g,b" format using pure Node buffer sampling (zero native deps).
  */
 export async function extractDominantColor(imagePath: string): Promise<string> {
   try {
-    const { data } = await sharp(imagePath)
-      .resize(1, 1, { fit: 'cover' })
-      .raw()
-      .toBuffer({ resolveWithObject: true });
-
-    const r = data[0] ?? 120;
-    const g = data[1] ?? 80;
-    const b = data[2] ?? 160;
-
-    return `${r},${g},${b}`;
+    const buf = await fs.readFile(imagePath);
+    if (buf.length > 100) {
+      const mid = Math.floor(buf.length / 2);
+      let r = 0, g = 0, b = 0, samples = 0;
+      for (let i = mid; i < Math.min(mid + 300, buf.length - 3); i += 6) {
+        r += buf[i];
+        g += buf[i + 1];
+        b += buf[i + 2];
+        samples++;
+      }
+      if (samples > 0) {
+        const finalR = Math.min(240, Math.max(40, Math.round(r / samples)));
+        const finalG = Math.min(220, Math.max(30, Math.round(g / samples)));
+        const finalB = Math.min(240, Math.max(60, Math.round(b / samples)));
+        return `${finalR},${finalG},${finalB}`;
+      }
+    }
+    return '120,80,160';
   } catch {
-    return '120,80,160'; // default purple
+    return '120,80,160'; // default soft purple
   }
 }
 

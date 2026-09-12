@@ -1,5 +1,6 @@
 // Song4Her 🦋 — Main Startup Orchestrator
 import { spawn, spawnSync, type ChildProcess } from 'child_process';
+import http from 'http';
 import path from 'path';
 import fs from 'fs';
 
@@ -95,36 +96,73 @@ console.log('  \x1b[1m\x1b[33m✔ Cloudflare Tunnel:\x1b[0m       Starting autom
 console.log('  ─────────────────────────────────────────────────────────────────\n');
 console.log('  Starting services...\n');
 
-// 5. Start Server
-const serverProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/server'], {
-  stdio: 'inherit',
-  cwd: ROOT_DIR,
-  shell: true,
-  env: { ...process.env },
-});
-processes.push(serverProc);
+async function start() {
+  // 5. Start Server
+  console.log('  ⚡ Launching Fastify API server...');
+  const serverProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/server'], {
+    stdio: 'inherit',
+    cwd: ROOT_DIR,
+    shell: true,
+    env: { ...process.env },
+  });
+  processes.push(serverProc);
 
-// 6. Start Web
-const webProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/web'], {
-  stdio: 'inherit',
-  cwd: ROOT_DIR,
-  shell: true,
-  env: { ...process.env },
-});
-processes.push(webProc);
-
-// 7. Automatically open browser after 3 seconds
-setTimeout(() => {
-  const url = 'http://localhost:3000/admin';
-  try {
-    if (isWin) {
-      spawn('cmd.exe', ['/c', 'start', url], { detached: true, stdio: 'ignore' });
-    } else if (isMac) {
-      spawn('open', [url], { detached: true, stdio: 'ignore' });
-    } else {
-      spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
-    }
-  } catch {
-    // Ignore if auto-open is unsupported in current terminal
+  function checkServerHealth(port: number = 3001): Promise<boolean> {
+    return new Promise((resolve) => {
+      const req = http.get(`http://127.0.0.1:${port}/health`, (res) => {
+        resolve(res.statusCode === 200);
+      });
+      req.on('error', () => resolve(false));
+      req.setTimeout(800, () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
   }
-}, 3000);
+
+  async function waitForServer(port: number = 3001, timeoutMs: number = 20000): Promise<boolean> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (await checkServerHealth(port)) return true;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    return false;
+  }
+
+  // 6. Wait for Fastify API to be listening and healthy before launching Next.js
+  console.log('  ⏳ Waiting for API server on port 3001...');
+  const isReady = await waitForServer(3001, 20000);
+  if (isReady) {
+    console.log('  \x1b[32m✔ API server is ready!\x1b[0m\n');
+  } else {
+    console.warn('  \x1b[33m⚠ API server took longer than expected to start, launching web...\x1b[0m\n');
+  }
+
+  // 7. Start Web
+  console.log('  ⚡ Launching Next.js web application...');
+  const webProc = spawn(npmCmd, ['run', 'dev', '--workspace=apps/web'], {
+    stdio: 'inherit',
+    cwd: ROOT_DIR,
+    shell: true,
+    env: { ...process.env },
+  });
+  processes.push(webProc);
+
+  // 8. Automatically open browser after web is ready
+  setTimeout(() => {
+    const url = 'http://localhost:3000/admin';
+    try {
+      if (isWin) {
+        spawn('cmd.exe', ['/c', 'start', url], { detached: true, stdio: 'ignore' });
+      } else if (isMac) {
+        spawn('open', [url], { detached: true, stdio: 'ignore' });
+      } else {
+        spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
+      }
+    } catch {
+      // Ignore if auto-open is unsupported in current terminal
+    }
+  }, 4000);
+}
+
+start().catch(console.error);

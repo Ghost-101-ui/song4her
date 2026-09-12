@@ -4,7 +4,6 @@ import fastifyCookie from '@fastify/cookie';
 import fastifySession from '@fastify/session';
 import fastifyCors from '@fastify/cors';
 import fastifyMultipart from '@fastify/multipart';
-import { createServer } from 'http';
 import { config } from './config/index.js';
 import { createSocketServer } from './socket/index.js';
 import { authRoutes } from './routes/auth.js';
@@ -48,10 +47,8 @@ async function bootstrap(): Promise<void> {
     trustProxy: true,
   });
 
-  // Create HTTP server (needed for Socket.IO)
-  const httpServer = createServer(app.server as any);
-  // Attach Socket.IO to HTTP server
-  createSocketServer(httpServer as any);
+  // Attach Socket.IO to Fastify's underlying HTTP server
+  createSocketServer(app.server);
   console.log('[SONG4HER] Socket.IO ready');
 
   // ─── Plugins ────────────────────────────────────────────────────────────
