@@ -214,9 +214,38 @@ song4her/
 - **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS, Lucide icons
 - **Backend**: Node.js, Fastify v5, Socket.IO v4
 - **Database**: SQLite via Prisma ORM
-- **Media**: FFmpeg (fluent-ffmpeg), Sharp
+- **Media**: FFmpeg (`fluent-ffmpeg`) with **zero native C++ dependencies** (100% Termux/Android Bionic libc compatible — no Sharp or node-gyp required)
 - **Tunnel**: Cloudflare Quick Tunnels (`cloudflared`)
 - **Auth**: Node.js `scrypt` salted hashing, secure `@fastify/session` cookies
+- **Orchestration**: `scripts/start.ts` with automatic health-check synchronization (waits for port 3001 before starting web)
+
+---
+
+## 🛠️ Troubleshooting Common Issues
+
+### `Error: connect ECONNREFUSED 127.0.0.1:3001`
+This happens if a previous Node process is occupying the port or if Next.js attempts to connect before the Fastify server is ready.
+1. **Free old processes**:
+   - **Termux / Linux / macOS**:
+     ```bash
+     killall node
+     ```
+   - **Windows CMD**:
+     ```cmd
+     taskkill /f /im node.exe
+     ```
+2. **Pull latest code**:
+   ```bash
+   git pull origin main
+   npm install
+   ```
+3. **Launch cleanly**:
+   ```bash
+   npm run song4her
+   # or
+   ./run.sh
+   ```
+   The startup orchestrator automatically polls `http://127.0.0.1:3001/health` and will only boot the Next.js frontend once the Fastify backend is confirmed listening and healthy.
 
 ---
 

@@ -79,3 +79,14 @@ If previous processes weren't cleanly closed:
   PORT=3002
   WEB_PORT=3000
   ```
+
+---
+
+## 6. `Error: connect ECONNREFUSED 127.0.0.1:3001`
+
+If you encounter this error on Termux or your laptop:
+1. Make sure all older node processes are closed:
+   - **Termux / Linux / macOS**: `killall node`
+   - **Windows**: `taskkill /f /im node.exe`
+2. Run `git pull origin main && npm install` to ensure you have the latest fix (which eliminates native C++ modules like Sharp).
+3. Start using `npm run song4her` or `./run.sh` — it now includes automatic startup synchronization that waits for the Fastify API server on port 3001 to report healthy before starting Next.js.
