@@ -52,21 +52,11 @@ async function bootstrap(): Promise<void> {
   // ─── Plugins ────────────────────────────────────────────────────────────
 
   await app.register(fastifyCors, {
-    origin: (origin, cb) => {
-      // Allow: no origin (server-side / curl), localhost, and any trycloudflare tunnel
-      if (
-        !origin ||
-        origin.startsWith('http://localhost') ||
-        origin.startsWith('http://127.0.0.1') ||
-        origin.endsWith('.trycloudflare.com')
-      ) {
-        cb(null, true);
-      } else {
-        cb(new Error('Not allowed by CORS'), false);
-      }
-    },
+    origin: true,
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Range', 'Cookie'],
+    exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Disposition'],
   });
 
   await app.register(fastifyCookie);

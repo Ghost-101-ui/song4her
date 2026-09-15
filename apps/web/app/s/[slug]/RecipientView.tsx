@@ -37,7 +37,7 @@ export function RecipientView({ delivery }: RecipientViewProps) {
     rotate: number; // random initial rotation
     size: number;   // font size in px
   }[]>([]);
-  const downloadBtnRef = useRef<HTMLButtonElement>(null);
+  const downloadBtnRef = useRef<HTMLAnchorElement>(null);
 
   const color = parseArtworkColor(delivery.artworkColor);
   const artworkUrl = delivery.hasArtwork ? publicApi.artworkUrl(delivery.slug) : null;
@@ -45,13 +45,19 @@ export function RecipientView({ delivery }: RecipientViewProps) {
   const downloadUrl = publicApi.downloadUrl(delivery.slug);
 
   // Audio Playback
-  const togglePlay = () => {
+  const togglePlay = async () => {
     if (!audioRef.current) return;
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+      try {
+        await audioRef.current.play();
+        setIsPlaying(true);
+      } catch (err) {
+        console.error('[AUDIO] Play error:', err);
+        setIsPlaying(false);
+      }
     }
   };
 
@@ -84,14 +90,6 @@ export function RecipientView({ delivery }: RecipientViewProps) {
   // Download Trigger & Celebration
   const handleDownload = () => {
     setDownloadStatus('downloading');
-
-    // Trigger file download
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.setAttribute('download', `${delivery.title} - ${delivery.artist}.${delivery.format}`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
 
     // 🎉 Party popper burst — spawn particles from the button's center
     const btn = downloadBtnRef.current;
@@ -133,12 +131,19 @@ export function RecipientView({ delivery }: RecipientViewProps) {
       <audio
         ref={audioRef}
         src={streamUrl}
-        preload="metadata"
+        preload="auto"
+        playsInline
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
         onEnded={() => {
           setIsPlaying(false);
           setCurrentTime(0);
+        }}
+        onError={(e) => {
+          console.error('[AUDIO] Stream error:', e);
+          setIsPlaying(false);
         }}
       />
 
@@ -319,8 +324,10 @@ export function RecipientView({ delivery }: RecipientViewProps) {
 
           {/* Download CTA Button */}
           <div className="space-y-2 pt-1">
-            <button
+            <a
               ref={downloadBtnRef}
+              href={downloadUrl}
+              download={`${delivery.title} - ${delivery.artist}.${delivery.format}`}
               onClick={handleDownload}
               className={`w-full py-4 px-6 rounded-2xl font-semibold text-base flex items-center justify-center gap-2.5 shadow-xl transition-all active:scale-[0.98] ${
                 downloadStatus === 'completed'
@@ -344,7 +351,7 @@ export function RecipientView({ delivery }: RecipientViewProps) {
                   <span>Download Song ({formatBytes(delivery.fileSize)})</span>
                 </>
               )}
-            </button>
+            </a>
             <p className="text-[11px] text-center text-white/30">
               Full quality • Direct download to your device
             </p>

@@ -17,6 +17,9 @@ const config: NextConfig = {
         source: '/api/:path*',
         headers: [
           { key: 'X-Song4Her', value: '🦋' },
+          // Allow range requests to pass through for audio streaming
+          { key: 'Access-Control-Allow-Headers', value: 'Range' },
+          { key: 'Access-Control-Expose-Headers', value: 'Content-Range, Accept-Ranges, Content-Length' },
         ],
       },
     ];
@@ -25,7 +28,19 @@ const config: NextConfig = {
     remotePatterns: [],
   },
   experimental: {
-    serverActions: { allowedOrigins: ['localhost:3000', '*.trycloudflare.com'] },
+    // Allow server actions from any origin (tunnel URLs, local IPs, etc.)
+    serverActions: {
+      allowedOrigins: [
+        'localhost:3000',
+        '127.0.0.1:3000',
+        '*.trycloudflare.com',
+        '*.cloudflare.com',
+        // Allow any local network IP (192.168.x.x, 10.x.x.x)
+        '192.168.*',
+        '10.*',
+        '172.*',
+      ],
+    },
   },
 };
 

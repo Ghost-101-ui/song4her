@@ -95,10 +95,12 @@ export async function publicRoutes(app: FastifyInstance): Promise<void> {
       const stat = await fs.stat(safePath);
       const contentType = mime.lookup(safePath) || delivery.mimeType;
 
-      // Safe filename for Content-Disposition
-      const downloadName = `${delivery.title} - ${delivery.artist}.${delivery.format}`
+      // Safe filename for Content-Disposition (ASCII fallback + UTF-8 RFC 5987)
+      const fallbackName = `${delivery.title} - ${delivery.artist}.${delivery.format}`
         .replace(/[^\w\s.\-]/g, '')
-        .trim();
+        .trim() || `song.${delivery.format}`;
+      const fullName = `${delivery.title} - ${delivery.artist}.${delivery.format}`;
+      const encodedName = encodeURIComponent(fullName);
 
       // Emit download started event to admin
       try { emitDownloadStarted(slug, delivery.title); } catch { /* ignore */ }
@@ -107,9 +109,10 @@ export async function publicRoutes(app: FastifyInstance): Promise<void> {
       reply
         .header('Content-Type', contentType)
         .header('Content-Length', stat.size)
-        .header('Content-Disposition', `attachment; filename="${downloadName}"`)
+        .header('Content-Disposition', `attachment; filename="${fallbackName}"; filename*=UTF-8''${encodedName}`)
         .header('Cache-Control', 'no-store')
-        .header('Accept-Ranges', 'bytes');
+        .header('Accept-Ranges', 'bytes')
+        .header('Access-Control-Allow-Origin', '*');
 
       // Increment download count asynchronously (don't wait)
       prisma.songDelivery.update({
@@ -162,6 +165,7 @@ export async function publicRoutes(app: FastifyInstance): Promise<void> {
           .header('Accept-Ranges', 'bytes')
           .header('Content-Length', chunksize)
           .header('Content-Type', contentType)
+          .header('Access-Control-Allow-Origin', '*')
           .send(fileStream);
       } else {
         const fileStream = (await import('fs')).createReadStream(safePath);
@@ -170,6 +174,7 @@ export async function publicRoutes(app: FastifyInstance): Promise<void> {
           .header('Content-Type', contentType)
           .header('Accept-Ranges', 'bytes')
           .header('Content-Disposition', 'inline')
+          .header('Access-Control-Allow-Origin', '*')
           .send(fileStream);
       }
     } catch {

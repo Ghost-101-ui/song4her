@@ -150,8 +150,8 @@ async function start() {
   console.log('  ⚡ Launching Fastify API server (subprocess)...');
 
   const serverProc = spawn(
-    tsxBin,
-    [...tsxArgs, path.join('apps', 'server', 'src', 'index.ts')],
+    npmCmd,
+    ['run', 'start', '--workspace=apps/server'],
     {
       stdio: 'inherit',
       cwd: ROOT_DIR,

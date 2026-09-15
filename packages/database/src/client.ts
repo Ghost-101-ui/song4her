@@ -1,7 +1,7 @@
 // Song4Her 🦋 — Zero-Native Pure TypeScript Database Client
 // 100% compatible with Android Termux (Bionic libc) & Windows/Mac/Linux. Zero C++/Rust binaries.
 import fs from 'fs/promises';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import type { SongDelivery, AppSettings } from '@song4her/types';
@@ -23,8 +23,30 @@ const DEFAULT_SETTINGS: AppSettings = {
 
 function resolveDbPath(): string {
   const dataDir = process.env.DATA_DIR || './data';
-  const resolved = path.isAbsolute(dataDir) ? dataDir : path.resolve(process.cwd(), dataDir);
-  return path.join(resolved, 'database', 'song4her.json');
+  if (path.isAbsolute(dataDir)) {
+    return path.join(dataDir, 'database', 'song4her.json');
+  }
+
+  // Look upward for the root package.json (name: 'song4her')
+  let current = process.cwd();
+  for (let i = 0; i < 5; i++) {
+    const pkg = path.join(current, 'package.json');
+    if (existsSync(pkg)) {
+      try {
+        const content = JSON.parse(readFileSync(pkg, 'utf-8'));
+        if (content.name === 'song4her') {
+          return path.join(current, dataDir, 'database', 'song4her.json');
+        }
+      } catch {
+        // ignore JSON parse error
+      }
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+
+  return path.resolve(process.cwd(), dataDir, 'database', 'song4her.json');
 }
 
 export class JsonDatabase {
